@@ -7,7 +7,7 @@ Stack](https://github.com/paketo-buildpacks/noble-tiny-stack) (an Ubuntu Noble
 tiny image) and contains **only Java composite buildpacks**. To use this
 builder, you can rely on the default order group.
 
-For example, with the `pack` CLI, use `--buildpack` as follows:
+For example, with the `pack` CLI, use `--builder` as follows:
 ```bash
 pack build great-java-app \
 --builder paketobuildpacks/builder-noble-java-tiny:latest
