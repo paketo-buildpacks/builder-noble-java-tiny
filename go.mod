@@ -1,6 +1,7 @@
 module github.com/paketo-buildpacks/builder-noble-java-tiny
 
 go 1.23.1
+
 require (
 	github.com/onsi/gomega v1.34.2
 	github.com/paketo-buildpacks/occam v0.18.8
