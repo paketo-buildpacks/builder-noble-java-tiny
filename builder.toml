@@ -9,7 +9,7 @@ description = "Ubuntu 24.04 Noble Numbat tiny image with only Java buildpacks in
   version = "16.0.0"
 
 [lifecycle]
-  version = "0.20.2"
+  version = "0.20.3"
 
 [[order]]
 
