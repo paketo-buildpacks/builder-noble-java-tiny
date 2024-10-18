@@ -3,31 +3,51 @@ name: Test Pull Request
 on:
   pull_request:
     branches:
-    - main
+      - main
 
 jobs:
-
   smoke:
-    name: Smoke Test
-    runs-on: ubuntu-22.04
+    name: Architecture-Specific Smoke Test
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      matrix:
+        runner: [ ubuntu-22.04, buildjet-4vcpu-ubuntu-2204-arm ]
+
     steps:
-    - name: Setup Go
-      uses: actions/setup-go@v3
-      with:
-        go-version: 'stable'
+      - name: Setup Go
+        uses: actions/setup-go@v3
+        with:
+          go-version: 'stable'
 
-    - name: Checkout
-      uses: actions/checkout@v3
+      - name: Checkout
+        uses: actions/checkout@v3
 
-    - name: Run Smoke Tests
-      run: ./scripts/smoke.sh
+      - name: Run Smoke Tests
+        run: ./scripts/smoke.sh
+
+
+  roundup:
+    name: Smoke Test
+    if: ${{ always() }}
+    runs-on: ubuntu-22.04
+    needs: smoke
+    steps:
+      - run: |
+          result="${{ needs.smoke.result }}"
+          if [[ $result == "success" ]]; then
+            echo "Smoke tests passed against all builders"
+            exit 0
+          else
+            echo "Smoke tests failed on one or more builders"
+            exit 1
+          fi
 
   upload:
     name: Upload Workflow Event Payload
     runs-on: ubuntu-22.04
     steps:
-    - name: Upload Artifact
-      uses: actions/upload-artifact@v3
-      with:
-        name: event-payload
-        path: ${{ github.event_path }}
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: event-payload
+          path: ${{ github.event_path }}

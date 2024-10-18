@@ -3,7 +3,7 @@ name: Push Builder Image
 on:
   release:
     types:
-    - published
+      - published
 
 jobs:
   push:
@@ -11,52 +11,58 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
 
-    - name: Parse Event
-      id: event
-      run: |
-        echo "tag=$(jq -r '.release.tag_name' "${GITHUB_EVENT_PATH}" | sed s/^v//)" >> "$GITHUB_OUTPUT"
+      - name: Parse Event
+        id: event
+        run: |
+          echo "tag=$(jq -r '.release.tag_name' "${GITHUB_EVENT_PATH}" | sed s/^v//)" >> "$GITHUB_OUTPUT"
 
-    - name: Checkout
-      uses: actions/checkout@v3
+      - name: Checkout
+        uses: actions/checkout@v3
 
-    - name: Get pack version
-      id: pack-version
-      run: |
-        version=$(jq -r .pack "scripts/.util/tools.json")
-        echo "version=${version#v}" >> "$GITHUB_OUTPUT"
+      - name: Get pack version
+        id: pack-version
+        run: |
+          version=$(jq -r .pack "scripts/.util/tools.json")
+          echo "version=${version#v}" >> "$GITHUB_OUTPUT"
 
-    - name: Install Global Pack
-      uses: buildpacks/github-actions/setup-pack@main
-      with:
-        pack-version: ${{ steps.pack-version.outputs.version }}
+      - name: Install Global Pack
+        uses: buildpacks/github-actions/setup-pack@main
+        with:
+          pack-version: ${{ steps.pack-version.outputs.version }}
 
-    - name: Enable Experimental Pack Features
-      run: |
-        if [ -f "scripts/options.json" ] && jq -e -r .pack_config_enable_experimental "scripts/options.json" > /dev/null; then
-          pack config experimental true
-        fi
+      - name: Install crane
+        run: |
+          VERSION=$(curl -s "https://api.github.com/repos/google/go-containerregistry/releases/latest" | jq -r '.tag_name')
+          OS=Linux
+          ARCH=x86_64
+          curl -sL "https://github.com/google/go-containerregistry/releases/download/${VERSION}/go-containerregistry_${OS}_${ARCH}.tar.gz" > go-containerregistry.tar.gz
 
-    - name: Create Builder Image
-      run: |
-        pack builder create builder --config builder.toml
+          tar -zxvf go-containerregistry.tar.gz -C "${HOME}/bin" crane
+          chmod +x "${HOME}/bin/crane"
 
-    - name: Push To Dockerhub
-      env:
-        PAKETO_BUILDPACKS_DOCKERHUB_USERNAME: ${{ secrets.PAKETO_BUILDPACKS_DOCKERHUB_USERNAME }}
-        PAKETO_BUILDPACKS_DOCKERHUB_PASSWORD: ${{ secrets.PAKETO_BUILDPACKS_DOCKERHUB_PASSWORD }}
-        GITHUB_REPOSITORY_OWNER: ${{ github.repository_owner }}
-      run: |
-        DOCKERHUB_ORG="${GITHUB_REPOSITORY_OWNER/-/}" # translates 'paketo-buildpacks' to 'paketobuildpacks'
-        # Strip off the Github org prefix from repo name
-        # paketo-buildpacks/builder-with-some-name --> builder-with-some-name
-        registry_repo=$(echo "${{ github.repository }}" | sed 's/^.*\///')
+      - name: Enable Experimental Pack Features
+        run: |
+          if [ -f "scripts/options.json" ] && jq -e -r .pack_config_enable_experimental "scripts/options.json" > /dev/null; then
+            pack config experimental true
+          fi
 
-        echo "${PAKETO_BUILDPACKS_DOCKERHUB_PASSWORD}" | docker login --username "${PAKETO_BUILDPACKS_DOCKERHUB_USERNAME}" --password-stdin
-        docker tag builder "${DOCKERHUB_ORG}/${registry_repo}:latest"
-        docker tag builder "${DOCKERHUB_ORG}/${registry_repo}:${{ steps.event.outputs.tag }}"
+      - name: Create Builder Image and Push To Dockerhub
+        env:
+          PAKETO_BUILDPACKS_DOCKERHUB_USERNAME: ${{ secrets.PAKETO_BUILDPACKS_DOCKERHUB_USERNAME }}
+          PAKETO_BUILDPACKS_DOCKERHUB_PASSWORD: ${{ secrets.PAKETO_BUILDPACKS_DOCKERHUB_PASSWORD }}
+          GITHUB_REPOSITORY_OWNER: ${{ github.repository_owner }}
+        run: |
+          DOCKERHUB_ORG="${GITHUB_REPOSITORY_OWNER/-/}" # translates 'paketo-buildpacks' to 'paketobuildpacks'
+          # Strip off the Github org prefix from repo name
+          # paketo-buildpacks/builder-with-some-name --> builder-with-some-name
+          registry_repo=$(echo "${{ github.repository }}" | sed 's/^.*\///')
 
-        docker push "${DOCKERHUB_ORG}/${registry_repo}:latest"
-        docker push "${DOCKERHUB_ORG}/${registry_repo}:${{ steps.event.outputs.tag }}"
+          echo "${PAKETO_BUILDPACKS_DOCKERHUB_PASSWORD}" | docker login --username "${PAKETO_BUILDPACKS_DOCKERHUB_USERNAME}" --password-stdin
+          # In order to publish multi-arch builders with pack, the builder MUST be published.
+
+          # It cannot be created locally and then pushed
+          pack builder create "${DOCKERHUB_ORG}/${registry_repo}:${{ steps.event.outputs.tag }}" --config builder.toml --publish
+          crane copy "${DOCKERHUB_ORG}/${registry_repo}:${{ steps.event.outputs.tag }}" "${DOCKERHUB_ORG}/${registry_repo}:latest"
 
   failure:
     name: Alert on Failure
@@ -64,15 +70,15 @@ jobs:
     needs: [push]
     if: ${{ always() && needs.push.result == 'failure' }}
     steps:
-    - name: File Failure Alert Issue
-      uses: paketo-buildpacks/github-config/actions/issue/file@main
-      with:
-        token: ${{ secrets.GITHUB_TOKEN }}
-        repo: ${{ github.repository }}
-        label: "failure:push"
-        comment_if_exists: true
-        issue_title: "Failure: Push Image workflow"
-        issue_body: |
-          Push Image workflow [failed](https://github.com/${{github.repository}}/actions/runs/${{github.run_id}}).
-        comment_body: |
-           Another failure occurred: https://github.com/${{github.repository}}/actions/runs/${{github.run_id}}
+      - name: File Failure Alert Issue
+        uses: paketo-buildpacks/github-config/actions/issue/file@main
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          repo: ${{ github.repository }}
+          label: "failure:push"
+          comment_if_exists: true
+          issue_title: "Failure: Push Image workflow"
+          issue_body: |
+            Push Image workflow [failed](https://github.com/${{github.repository}}/actions/runs/${{github.run_id}}).
+          comment_body: |
+            Another failure occurred: https://github.com/${{github.repository}}/actions/runs/${{github.run_id}}
