@@ -3,99 +3,107 @@ name: Create Release
 on:
   push:
     branches:
-    - main
+      - main
+  workflow_dispatch: {}
 
 concurrency: release
 
 jobs:
   smoke:
     name: Smoke Test
-    runs-on: ubuntu-22.04
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      matrix:
+        runner: [ ubuntu-22.04, buildjet-4vcpu-ubuntu-2204-arm ]
     outputs:
       release_notes: ${{ steps.notes.outputs.body }}
     steps:
-    - name: Setup Go
-      uses: actions/setup-go@v3
-      with:
-        go-version: 'stable'
+      - name: Setup Go
+        uses: actions/setup-go@v3
+        with:
+          go-version: 'stable'
 
-    - name: Checkout
-      uses: actions/checkout@v3
+      - name: Checkout
+        uses: actions/checkout@v3
 
-    - name: Get pack version
-      id: pack-version
-      run: |
-        version=$(jq -r .pack "scripts/.util/tools.json")
-        echo "version=${version#v}" >> "$GITHUB_OUTPUT"
 
-    - name: Install Global Pack
-      uses: buildpacks/github-actions/setup-pack@main
-      with:
-        pack-version: ${{ steps.pack-version.outputs.version }}
+      - name: Get pack version
+        if: matrix.runner == 'ubuntu-22.04'
+        id: pack-version
+        run: |
+          version=$(jq -r .pack "scripts/.util/tools.json")
+          echo "version=${version#v}" >> "$GITHUB_OUTPUT"
 
-    - name: Run Smoke Tests
-      run: ./scripts/smoke.sh --name builder
+      - name: Install Global Pack
+        if: matrix.runner == 'ubuntu-22.04'
+        uses: buildpacks/github-actions/setup-pack@main
+        with:
+          pack-version: ${{ steps.pack-version.outputs.version }}
 
-    - name: Generate Release Notes
-      id: notes
-      run: |
-        notes="$(pack inspect-builder builder | grep -v 'Inspecting builder' \
-          | grep -v 'REMOTE:' \
-          | grep -v 'LOCAL:' \
-          | grep -v '\(not present\)' \
-          | grep -v 'Warning' \
-          | sed -e '/./,$!d' \
-          | awk -F, '{printf "%s\\n", $0}')"
-        echo "body=${notes}" >> "$GITHUB_OUTPUT"
+      - name: Run Smoke Tests
+        run: ./scripts/smoke.sh --name builder --skip-cleanup
+
+      - name: Generate Release Notes
+        if: matrix.runner == 'ubuntu-22.04'
+        id: notes
+        run: |
+          notes="$(pack inspect-builder localhost:5000/builder | grep -v 'Inspecting builder' \
+            | grep -v 'REMOTE:' \
+            | grep -v 'LOCAL:' \
+            | grep -v '\(not present\)' \
+            | grep -v 'Warning' \
+            | sed -e '/./,$!d' \
+            | awk -F, '{printf "%s\\n", $0}')"
+          echo "body=${notes}" >> "$GITHUB_OUTPUT"
 
   release:
     name: Release
     runs-on: ubuntu-22.04
     needs: smoke
     steps:
-    - name: Checkout With History
-      uses: actions/checkout@v3
-      with:
-        fetch-depth: 0  # gets full history
+      - name: Checkout With History
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0  # gets full history
 
-    - name: Compare With Previous Release
-      id: compare_previous_release
-      run: |
-        if [ -z "$(git diff $(git describe --tags --abbrev=0) -- builder.toml)" ]
-        then
-          echo "builder_changes=false" >> "$GITHUB_OUTPUT"
-        else
-          echo "builder_changes=true" >> "$GITHUB_OUTPUT"
-        fi
+      - name: Compare With Previous Release
+        id: compare_previous_release
+        run: |
+          if [ -z "$(git diff $(git describe --tags --abbrev=0) -- builder.toml)" ]
+          then
+            echo "builder_changes=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "builder_changes=true" >> "$GITHUB_OUTPUT"
+          fi
 
-    - name: Publish Release
-      id: publish
-      if: ${{ steps.compare_previous_release.outputs.builder_changes == 'true' }}
-      uses: release-drafter/release-drafter@v5
-      with:
-        config-name: release-drafter-config.yml
-        publish: true
-      env:
-        GITHUB_TOKEN: ${{ secrets.PAKETO_BOT_GITHUB_TOKEN }}
+      - name: Publish Release
+        id: publish
+        if: ${{ steps.compare_previous_release.outputs.builder_changes == 'true' }}
+        uses: release-drafter/release-drafter@v5
+        with:
+          config-name: release-drafter-config.yml
+          publish: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.PAKETO_BOT_GITHUB_TOKEN }}
 
-    - name: Update Release Notes
-      if: ${{ steps.compare_previous_release.outputs.builder_changes == 'true' }}
-      run: |
-        set -euo pipefail
-        shopt -s inherit_errexit
+      - name: Update Release Notes
+        if: ${{ steps.compare_previous_release.outputs.builder_changes == 'true' }}
+        run: |
+          set -euo pipefail
+          shopt -s inherit_errexit
 
-        payload="{\"body\" : \"\`\`\`\n${RELEASE_BODY}\n\`\`\`\"}"
+          payload="{\"body\" : \"\`\`\`\n${RELEASE_BODY}\n\`\`\`\"}"
 
-        curl --fail \
-          -X PATCH \
-          -H "Accept: application/vnd.github.v3+json" \
-          -H "Authorization: token ${GITHUB_TOKEN}" \
-          "https://api.github.com/repos/${GITHUB_REPOSITORY}/releases/${RELEASE_ID}" \
-          -d "${payload}"
-      env:
-        RELEASE_ID: ${{ steps.publish.outputs.id }}
-        RELEASE_BODY: ${{ needs.smoke.outputs.release_notes }}
-        GITHUB_TOKEN: ${{ secrets.PAKETO_BOT_GITHUB_TOKEN }}
+          curl --fail \
+            -X PATCH \
+            -H "Accept: application/vnd.github.v3+json" \
+            -H "Authorization: token ${GITHUB_TOKEN}" \
+            "https://api.github.com/repos/${GITHUB_REPOSITORY}/releases/${RELEASE_ID}" \
+            -d "${payload}"
+        env:
+          RELEASE_ID: ${{ steps.publish.outputs.id }}
+          RELEASE_BODY: ${{ needs.smoke.outputs.release_notes }}
+          GITHUB_TOKEN: ${{ secrets.PAKETO_BOT_GITHUB_TOKEN }}
 
   failure:
     name: Alert on Failure
@@ -103,15 +111,15 @@ jobs:
     needs: [ smoke, release ]
     if: ${{ always() && needs.smoke.result == 'failure' ||  needs.release.result == 'failure' }}
     steps:
-    - name: File Failure Alert Issue
-      uses: paketo-buildpacks/github-config/actions/issue/file@main
-      with:
-        token: ${{ secrets.GITHUB_TOKEN }}
-        repo: ${{ github.repository }}
-        label: "failure:release"
-        comment_if_exists: true
-        issue_title: "Failure: Create Release workflow"
-        issue_body: |
-          Create Release workflow [failed](https://github.com/${{github.repository}}/actions/runs/${{github.run_id}}).
-        comment_body: |
-          Another failure occurred: https://github.com/${{github.repository}}/actions/runs/${{github.run_id}}
+      - name: File Failure Alert Issue
+        uses: paketo-buildpacks/github-config/actions/issue/file@main
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          repo: ${{ github.repository }}
+          label: "failure:release"
+          comment_if_exists: true
+          issue_title: "Failure: Create Release workflow"
+          issue_body: |
+            Create Release workflow [failed](https://github.com/${{github.repository}}/actions/runs/${{github.run_id}}).
+          comment_body: |
+            Another failure occurred: https://github.com/${{github.repository}}/actions/runs/${{github.run_id}}

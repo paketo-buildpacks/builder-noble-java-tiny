@@ -7,15 +7,18 @@ jobs:
 
   smoke:
     name: Smoke Test
-    runs-on: ubuntu-22.04
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      matrix:
+        runner: [ ubuntu-22.04, buildjet-4vcpu-ubuntu-2204-arm ]
     steps:
-    - name: Setup Go
-      uses: actions/setup-go@v3
-      with:
-        go-version: 'stable'
+      - name: Setup Go
+        uses: actions/setup-go@v3
+        with:
+          go-version: 'stable'
 
-    - name: Checkout
-      uses: actions/checkout@v3
+      - name: Checkout
+        uses: actions/checkout@v3
 
-    - name: Run Smoke Tests
-      run: ./scripts/smoke.sh
+      - name: Run Smoke Tests
+        run: ./scripts/smoke.sh
