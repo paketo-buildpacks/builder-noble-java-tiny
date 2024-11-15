@@ -1,8 +1,8 @@
 description = "Ubuntu 24.04 Noble Numbat tiny image with only Java buildpacks included. To use, specify buildpacks at build time."
 
 [[buildpacks]]
-  uri = "docker://gcr.io/paketo-buildpacks/java-native-image:11.1.0"
-  version = "11.1.0"
+  uri = "docker://gcr.io/paketo-buildpacks/java-native-image:11.2.0"
+  version = "11.2.0"
 
 [[buildpacks]]
   uri = "docker://gcr.io/paketo-buildpacks/java:17.1.0"
@@ -15,7 +15,7 @@ description = "Ubuntu 24.04 Noble Numbat tiny image with only Java buildpacks in
 
   [[order.group]]
     id = "paketo-buildpacks/java-native-image"
-    version = "11.1.0"
+    version = "11.2.0"
 
 [[order]]
 
