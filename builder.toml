@@ -1,30 +1,30 @@
 description = "Ubuntu 24.04 Noble Numbat tiny image with only Java buildpacks included. To use, specify buildpacks at build time."
 
 [[buildpacks]]
-  uri = "docker://gcr.io/paketo-buildpacks/java-native-image:10.1.0"
-  version = "10.1.0"
+  uri = "docker://gcr.io/paketo-buildpacks/java-native-image:11.2.0"
+  version = "11.2.0"
 
 [[buildpacks]]
-  uri = "docker://gcr.io/paketo-buildpacks/java:16.1.0"
-  version = "16.1.0"
+  uri = "docker://gcr.io/paketo-buildpacks/java:17.3.0"
+  version = "17.3.0"
 
 [lifecycle]
-  version = "0.20.3"
+  version = "0.20.4"
 
 [[order]]
 
   [[order.group]]
     id = "paketo-buildpacks/java-native-image"
-    version = "10.1.0"
+    version = "11.2.0"
 
 [[order]]
 
   [[order.group]]
     id = "paketo-buildpacks/java"
-    version = "16.1.0"
+    version = "17.3.0"
 
 [stack]
-  build-image = "docker.io/paketobuildpacks/build-noble-tiny:0.0.14"
+  build-image = "docker.io/paketobuildpacks/build-noble-tiny:0.0.16"
   id = "io.buildpacks.stacks.noble.tiny"
   run-image = "index.docker.io/paketobuildpacks/run-noble-tiny:latest"
   run-image-mirrors = []
