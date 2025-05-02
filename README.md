@@ -2,9 +2,8 @@
 
 ## `paketobuildpacks/builder-noble-java-tiny:latest`
 
-This builder uses the [Paketo Noble Tiny
-Stack](https://github.com/paketo-buildpacks/noble-tiny-stack) (an Ubuntu Noble
-tiny image) and contains **only Java composite buildpacks**. To use this
+This builder uses the [Ubuntu Noble Base Images](https://github.com/paketo-buildpacks/ubuntu-noble-base-images) (an Ubuntu Noble
+tiny stack) and contains **only Java composite buildpacks**. To use this
 builder, you can rely on the default order group.
 
 For example, with the `pack` CLI, use `--builder` as follows:
