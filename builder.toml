@@ -8,6 +8,10 @@ description = "Ubuntu 24.04 Noble Numbat tiny image with only Java buildpacks in
   uri = "docker://docker.io/paketobuildpacks/java:18.7.0"
   version = "18.7.0"
 
+[[buildpacks]]
+  uri = "docker://docker.io/paketobuildpacks/health-checker:2.10.0"
+  version = "2.10.0"
+
 [lifecycle]
   version = "0.20.9"
 
@@ -17,11 +21,21 @@ description = "Ubuntu 24.04 Noble Numbat tiny image with only Java buildpacks in
     id = "paketo-buildpacks/java-native-image"
     version = "11.11.0"
 
+  [[order.group]]
+    id = "paketo-buildpacks/health-checker"
+    version = "2.10.0"
+    optional = true
+
 [[order]]
 
   [[order.group]]
     id = "paketo-buildpacks/java"
     version = "18.7.0"
+
+  [[order.group]]
+    id = "paketo-buildpacks/health-checker"
+    version = "2.10.0"
+    optional = true
 
 [stack]
   build-image = "docker.io/paketobuildpacks/ubuntu-noble-build-base:0.0.6"
