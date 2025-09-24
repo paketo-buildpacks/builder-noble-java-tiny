@@ -3,51 +3,107 @@ name: Test Pull Request
 on:
   pull_request:
     branches:
-      - main
+    - main
+env:
+  BUILDERS_FILEPATH: "builders.json"
 
 jobs:
+  preparation:
+    name: Preparation
+    runs-on: ubuntu-24.04
+    outputs:
+      combos: ${{ steps.get_combos.outputs.combos }}
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v5
+
+    - name: Get Combos
+      id: get_combos
+      run: |
+        builders=$(jq -n -c '[]')
+
+        if [ -f ${{ env.BUILDERS_FILEPATH }} ]; then
+          builders=$(jq -c '.builders' ${{ env.BUILDERS_FILEPATH }})
+        else
+          # Strip off the Github org prefix from repo name
+          # paketo-buildpacks/builder-with-some-name --> builder-with-some-name
+          registry_repo=$(echo "${{ github.repository }}" | sed 's/^.*\///')
+          builders=$(jq -n -c '[
+              {
+                "name": "'"${registry_repo}"'",
+                "path": ".",
+                "container_repository": "'"${registry_repo}"'",
+                "test_runners": ["ubuntu-24.04"]
+              }
+            ]')
+        fi
+
+        builders=$(jq -c '.[]' <<< "$builders")
+
+        combos=$(jq -n -c '[]')
+
+        for builder in $builders; do
+          runners=$(echo $builder | jq -r '.test_runners[]')
+          builder_name=$(echo $builder | jq -r '.name')
+          builder_path=$(echo $builder | jq -r '.path')
+          for runner in $runners; do
+            combos=$(
+              jq \
+                --arg builder_name "$builder_name" \
+                --arg runner "$runner" \
+                --arg builder_path "$builder_path" \
+                '. + [{"builder": $builder_name, "runner": $runner, "path": $builder_path}]' \
+                <<< "$combos"
+            )
+          done
+        done
+
+        combos=$(jq -c <<< "$combos")
+        echo "combos=$combos"
+        echo "combos=$combos" >> "$GITHUB_OUTPUT"
+
   smoke:
-    name: Architecture-Specific Smoke Test
-    runs-on: ${{ matrix.runner }}
+    name: Smoke Test
+    needs: preparation
     strategy:
       matrix:
-        runner: [ ubuntu-22.04, buildjet-4vcpu-ubuntu-2204-arm ]
+        combos: ${{ fromJSON(needs.preparation.outputs.combos) }}
+    runs-on: ${{ matrix.combos.runner }}
 
     steps:
-      - name: Setup Go
-        uses: actions/setup-go@v3
-        with:
-          go-version: 'stable'
+    - name: Checkout
+      uses: actions/checkout@v5
 
-      - name: Checkout
-        uses: actions/checkout@v3
+    - name: Setup Go
+      uses: actions/setup-go@v6
+      with:
+        go-version-file: go.mod
 
-      - name: Run Smoke Tests
-        run: ./scripts/smoke.sh
-
+    - name: Run Smoke Tests
+      run: ./scripts/smoke.sh --builder-dir "${{ matrix.combos.path }}"
 
   roundup:
     name: Smoke Test
     if: ${{ always() }}
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     needs: smoke
     steps:
-      - run: |
-          result="${{ needs.smoke.result }}"
-          if [[ $result == "success" ]]; then
-            echo "Smoke tests passed against all builders"
-            exit 0
-          else
-            echo "Smoke tests failed on one or more builders"
-            exit 1
-          fi
+    - run: |
+        result="${{ needs.smoke.result }}"
+        if [[ $result == "success" ]]; then
+          echo "Smoke tests passed against all builders"
+          exit 0
+        else
+          echo "Smoke tests failed on one or more builders"
+          exit 1
+        fi
 
   upload:
     name: Upload Workflow Event Payload
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     steps:
-      - name: Upload Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: event-payload
-          path: ${{ github.event_path }}
+    - name: Upload Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: event-payload
+        path: ${{ github.event_path }}
