@@ -9,7 +9,7 @@ description = "Ubuntu 24.04 Noble Numbat tiny image with only Java buildpacks in
   version = "21.1.0"
 
 [lifecycle]
-  version = "0.21.1"
+  version = "0.21.4"
 
 [[order]]
 
@@ -24,9 +24,9 @@ description = "Ubuntu 24.04 Noble Numbat tiny image with only Java buildpacks in
     version = "21.1.0"
 
 [stack]
-  build-image = "docker.io/paketobuildpacks/ubuntu-noble-build:0.0.53"
+  build-image = "docker.io/paketobuildpacks/ubuntu-noble-build:0.0.54"
   id = "io.buildpacks.stacks.noble"
-  run-image = "docker.io/paketobuildpacks/ubuntu-noble-run-tiny:0.0.53"
+  run-image = "docker.io/paketobuildpacks/ubuntu-noble-run-tiny:0.0.54"
 
 [[targets]]
   arch = "amd64"
