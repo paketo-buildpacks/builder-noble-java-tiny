@@ -1,12 +1,12 @@
 description = "Ubuntu 24.04 Noble Numbat tiny image with only Java buildpacks included. To use, specify buildpacks at build time."
 
 [[buildpacks]]
-  uri = "docker://docker.io/paketobuildpacks/java-native-image:14.0.0"
-  version = "14.0.0"
+  uri = "docker://docker.io/paketobuildpacks/java-native-image:14.1.0"
+  version = "14.1.0"
 
 [[buildpacks]]
-  uri = "docker://docker.io/paketobuildpacks/java:21.1.0"
-  version = "21.1.0"
+  uri = "docker://docker.io/paketobuildpacks/java:21.2.0"
+  version = "21.2.0"
 
 [lifecycle]
   version = "0.21.4"
@@ -15,13 +15,13 @@ description = "Ubuntu 24.04 Noble Numbat tiny image with only Java buildpacks in
 
   [[order.group]]
     id = "paketo-buildpacks/java-native-image"
-    version = "14.0.0"
+    version = "14.1.0"
 
 [[order]]
 
   [[order.group]]
     id = "paketo-buildpacks/java"
-    version = "21.1.0"
+    version = "21.2.0"
 
 [stack]
   build-image = "docker.io/paketobuildpacks/ubuntu-noble-build:0.0.54"
