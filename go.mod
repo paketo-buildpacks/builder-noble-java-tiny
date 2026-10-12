@@ -1,6 +1,6 @@
 module github.com/paketo-buildpacks/builder-noble-java-tiny
 
-go 1.27.1
+go 1.27.2
 
 require (
 	github.com/onsi/gomega v1.43.1
