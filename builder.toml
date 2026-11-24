@@ -23,8 +23,8 @@ version = '22.10.0'
 
 [stack]
 id = 'io.buildpacks.stacks.noble'
-build-image = 'docker.io/paketobuildpacks/ubuntu-noble-build:0.0.162'
-run-image = 'docker.io/paketobuildpacks/ubuntu-noble-run-tiny:0.0.162'
+build-image = 'docker.io/paketobuildpacks/ubuntu-noble-build:0.0.163'
+run-image = 'docker.io/paketobuildpacks/ubuntu-noble-run-tiny:0.0.163'
 
 [[targets]]
 os = 'linux'
