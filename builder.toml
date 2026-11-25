@@ -9,7 +9,7 @@ uri = 'docker://docker.io/paketobuildpacks/java:22.10.0'
 version = '22.10.0'
 
 [lifecycle]
-version = '0.21.29'
+version = '0.21.30'
 
 [[order]]
 [[order.group]]
